@@ -1,0 +1,660 @@
+
+import { geom } from './lib/math/geom';
+import './main.css';
+import p5 from 'p5';
+
+const sketch_a_root_id = 'sketch-a-root';
+const sketch_a_id = 'sketch-a';
+const sketch_a_dbg_panel_id = 'sketch-a-panel';
+
+let cfg_base_elems: {
+  cfgTmplt: HTMLTemplateElement;
+  inputGroupBase: HTMLDivElement;
+  numInputBase: HTMLDivElement;
+  btnInputBase: HTMLDivElement;
+};
+
+(() => {
+  try {
+    initElems();
+    // initSketch3();
+    init();
+    init2();
+  } catch(e) {
+    console.error(e);
+    throw e;
+  }
+})();
+
+class WthObj {
+  static init_v = -7;
+  static origin_y = 100;
+  static bounce_mod = 0.6;
+  static g = 0.25;
+
+  y_max = WthObj.origin_y;
+  y_min = 0;
+  x = 0;
+  y = 0;
+  v = 0;
+  active = false;
+  txt: string;
+
+  constructor(txt: string) {
+    this.txt = txt;
+  }
+  /* advance by one step _*/
+  step() {
+    let bounce_mod = WthObj.bounce_mod;
+    const g = WthObj.g;
+    this.y += this.v;
+    if(this.y > this.y_max) {
+      this.v *= -bounce_mod;
+      this.y = this.y_max;
+      if(((this.v + g) * bounce_mod) - (this.v + g) < 0.25) {
+        if(this.active) {
+          this.v = WthObj.init_v;
+        } else {
+          this.v = 0;
+        }
+      }
+    } else {
+      this.v += g; // gravity
+    }
+  }
+}
+
+function initSketch3() {
+  const sk3Id = 'sk-3';
+  let sk3El = createSketchElems(sk3Id);
+
+  let sk_3 = new p5((p) => {
+    let sketch_w = sk3El.clientWidth;
+    let sketch_h = sk3El.clientHeight;
+    let bgColor: p5.Color;
+    let drawingCtx: CanvasRenderingContext2D;
+
+    p.setup = function setup() {
+      bgColor = p.color(255);
+      p.createCanvas(sketch_w, sketch_h);
+      drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+    }
+
+    p.draw = function draw() {
+      p.background(bgColor);
+      drawBxs();
+    }
+
+    function drawBxs() {
+      let orig_x = 20;
+      let orig_y = sketch_h/2;
+      let ct = 0;
+      let ix = 0;
+      let padX = 5;
+      while(ct < 20) {
+        let txtStr = `${ct}`;
+        let txtW = p.textWidth(txtStr);
+        p.text(txtStr, orig_x + ix, orig_y);
+        ix += txtW + 1 + padX;
+        ct++;
+      }
+    }
+  }, sk3El);
+}
+
+function createSketchElems(skId: string) {
+  let rootEl = document.querySelector<HTMLDivElement>('#p5-ezd-app');
+  if(rootEl === null) {
+    throw new Error('root element is null');
+  }
+  let skMainEl = rootEl.querySelector<HTMLDivElement>('#sketch-main');
+  if(skMainEl === null) {
+    throw new Error('sketch-main element is null');
+  }
+  let sketchAppTmplt = getHtmlTemplate('#sketch-app-tmplt');
+  let sketchAppEl = document.importNode(sketchAppTmplt.content, true)
+    .querySelector<HTMLDivElement>('.sk-app')!;
+  sketchAppEl.id = `${skId}-app`;
+  skMainEl.appendChild(sketchAppEl);
+  /* init dom/menu */
+  let skEl = sketchAppEl.querySelector<HTMLDivElement>('.sk-root .sketch');
+  if(skEl === null) {
+    throw new Error('missing sketch container element');
+  }
+  // let skEl = document.createElement('div');
+  skEl.id = skId;
+  // containerEl.append(skEl);
+  return skEl;
+}
+
+function initElems() {
+  let cfgTmpltEl = getHtmlTemplate('#sk-cfg-components-tmplt');
+  cfg_base_elems = {
+    cfgTmplt: cfgTmpltEl,
+    inputGroupBase: document.importNode(cfgTmpltEl.content, true)
+      .querySelector<HTMLDivElement>('.cfg-input-group')!,
+    numInputBase: document.importNode(cfgTmpltEl.content, true)
+      .querySelector<HTMLDivElement>('.num-input')!,
+    btnInputBase: document.importNode(cfgTmpltEl.content, true)
+      .querySelector<HTMLDivElement>('.cfg-input.btn-input')!,
+  };
+}
+
+type NumInputElem = {
+  el: HTMLDivElement;
+  inputEl: HTMLInputElement;
+  labelEl: HTMLDivElement;
+};
+function createNumInputElem(elId: string, opts: {
+  value?: string | number;
+  step?: string | number;
+  labelTxt?: string;
+} = {}): NumInputElem {
+  let numEl = cfg_base_elems.numInputBase.cloneNode(true) as HTMLDivElement;
+  let numInputEl = numEl.querySelector<HTMLInputElement>('input[type="number"]')!;
+  numInputEl.id = elId;
+  if(opts.value !== undefined) {
+    numInputEl.value = `${opts.value}`;
+  }
+  if(opts.step !== undefined) {
+    numInputEl.step = `${opts.step}`;
+  }
+  let numLabelEl = numEl.querySelector<HTMLDivElement>('.number-label')!;
+  if(opts.labelTxt !== undefined) {
+    numLabelEl.innerText = opts.labelTxt;
+  }
+  return {
+    el: numEl,
+    inputEl: numInputEl,
+    labelEl: numLabelEl,
+  };
+}
+type BtnElem = {
+  el: HTMLDivElement;
+  btnEl: HTMLButtonElement;
+  labelEl: HTMLDivElement;
+};
+function createBtnInputElem(elId: string, opts: {
+  txt?: string;
+  labelTxt?: string;
+} = {}): BtnElem {
+  let btnEl = cfg_base_elems.btnInputBase.cloneNode(true) as HTMLDivElement;
+  let btnInputEl = btnEl.querySelector<HTMLButtonElement>('button.sk-btn')!;
+  let btnLabelEl = btnEl.querySelector<HTMLDivElement>('.sk-btn-label')!;
+  btnInputEl.id = elId;
+  if(opts.txt !== undefined) {
+    btnInputEl.innerText = opts.txt;
+  }
+  if(opts.labelTxt !== undefined) {
+    btnLabelEl.innerText = opts.labelTxt;
+  }
+  return {
+    el: btnEl,
+    btnEl: btnInputEl,
+    labelEl: btnLabelEl,
+  };
+}
+type InputGroupElem = {
+  el: HTMLDivElement;
+};
+function createInputGroupElem(opts: {
+  elId?: string;
+  children?: HTMLElement[];
+} = {}): InputGroupElem {
+  let inputGroupElem = cfg_base_elems.inputGroupBase.cloneNode(true) as HTMLDivElement;
+  let children = opts.children ?? [];
+  if(opts.elId !== undefined) {
+    inputGroupElem.id = opts.elId;
+  }
+  for(let i = 0; i < children.length; i++) {
+    console.log(children[i]);
+    inputGroupElem.appendChild(children[i]);
+  }
+  return {
+    el: inputGroupElem,
+  };
+}
+
+function init2() {
+  /* sketch-specific */
+  initSketchB();
+}
+
+function initSketchB() {
+
+  /* init menu/dom _*/
+  const sk_b_id = 'sketch-b';
+  let skBEl = createSketchElems(sk_b_id);
+  const cfg_default = {
+    circ_d: 100,
+    rot_mod: 2,
+    freq_mod: 3,
+  };
+  let cfg = Object.assign({}, cfg_default);
+
+  /* init config menu els  _*/
+  let skAppEl = document.querySelector<HTMLDivElement>(`#${sk_b_id}-app`);
+  if(skAppEl === null) {
+    throw new Error('null sketch-b app element');
+  }
+  let cfgMenuEl = skAppEl?.querySelector<HTMLDivElement>('.sk-cfg-menu');
+  if(cfgMenuEl === null) {
+    throw new Error('null config menu elem');
+  }
+
+
+  let resetBtn = createBtnInputElem('skB_reset-btn', {
+    txt: 'reset',
+  });
+  let inputGroup1 = createInputGroupElem({ children: [ resetBtn.el ] });
+
+  let freqInput = createNumInputElem('skB_freq-mod-input', {
+    value: cfg.freq_mod,
+    step: 0.25,
+    labelTxt: 'freq',
+  });
+  let rotInput = createNumInputElem('skB_rot-mod-input', {
+    value: cfg.rot_mod,
+    step: 0.5,
+    labelTxt: 'rot',
+  });
+  let inputGroup2 = createInputGroupElem({ children: [
+    freqInput.el,
+    rotInput.el,
+  ]});
+
+  cfgMenuEl.appendChild(inputGroup1.el);
+  cfgMenuEl.appendChild(inputGroup2.el);
+
+
+  let sketch_b = new p5((p) => {
+    let bg_color: p5.Color;
+    let sketch_w = skBEl.clientWidth;
+    let sketch_h = skBEl.clientHeight;
+    let drawingCtx: CanvasRenderingContext2D;
+
+    let degIt = 0;
+
+    p.setup = function setup() {
+      bg_color = p.color(20);
+      p.createCanvas(sketch_w, sketch_h);
+      drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+      initCfgMenu();
+    }
+
+    p.draw = function draw() {
+      p.background(bg_color);
+      /*  */
+      // drawWaveGraph();
+      drawCircWav();
+      drawInfoTxt();
+
+      updateCfgMenu();
+    }
+
+    function initCfgMenu() {
+      resetBtn.btnEl.addEventListener('click', ($e) => {
+        cfg = Object.assign({}, cfg_default);
+      });
+      freqInput.inputEl.addEventListener('input', ($e) => {
+        if(!($e.target instanceof HTMLInputElement)) {
+          return;
+        }
+        let val = +$e.target.value;
+        if(!isNaN(val)) {
+          cfg.freq_mod = val;
+        }
+      });
+      rotInput.inputEl.addEventListener('input', ($e) => {
+        if(!($e.target instanceof HTMLInputElement)) {
+          return;
+        }
+        let val = +$e.target.value;
+        if(!isNaN(val)) {
+          cfg.rot_mod = val;
+        }
+      });
+    }
+
+    function updateCfgMenu() {
+      let currFreqMod = +freqInput.inputEl.value;
+      if(currFreqMod !== cfg.freq_mod) {
+        freqInput.inputEl.value = `${cfg.freq_mod}`;
+      }
+      let currRotMod = +rotInput.inputEl.value;
+      if(currRotMod !== cfg.rot_mod) {
+        rotInput.inputEl.value = `${cfg.rot_mod}`;
+      }
+    }
+
+    function drawCircWav() {
+      /* circ */
+      let c1: p5.Color = p.color(10, 150, 230);
+      // let c1: p5.Color = p.color(225, 195, 0);
+
+
+      /* base / axes */
+      // let c2 = p.color(150, 150, 150);
+      let c2 = p.color(130);
+
+      /* cosine */
+      // let c5 = p.color(207, 221, 157);
+      let c5 = p.color(251, 140, 172);
+      // let c5 = p.color(253, 168, 191);
+      // let c5 = p.color(253, 195, 209);
+
+      // let c4 = p.color(225, 195, 0);
+      // let c4 = p.color(215, 170, 170);
+      // let c4 = p.color(239, 207, 227);
+      let c4 = p.color(253, 168, 191);
+
+      /* sine _*/
+      // let c3 = p.color(215, 125, 95);
+      // let c3 = p.color(0, 180, 150);
+      let c3 = p.color(107, 241, 157);
+      // let c3 = p.color(207, 221, 157);;
+      // let c3 = p.color(239, 207, 227);
+      // let c3 = p.color(248, 202, 228);
+
+      let c6 = p.color(0, 220, 150);
+      /* Position circle proportionally to one side _*/
+      let cDeg = degIt % 360;
+      degIt += cfg.rot_mod;
+      let r = cfg.circ_d / 2;
+      // let circX = sketch_w / 5;
+      let circX = (cfg.circ_d - r) + 40;
+      let circY = sketch_h / 2;
+      let wavGraph_x = circX + r + 30;
+      let wavGraph_w = (sketch_w - wavGraph_x - 30);
+      p.strokeWeight(1);
+      p.noFill();
+      // p.stroke(15, 90, 75)
+      p.stroke(c1);
+      drawingCtx.setLineDash([4, 4]);
+      p.circle(circX, circY, cfg.circ_d);
+      drawingCtx.setLineDash([]);
+      p.line(circX, circY - r, circX, circY + r);
+      p.line(circX - r, circY, circX + r, circY);
+
+      let [ circ_x2, circ_y2 ] = geom.endPoint(circX, circY, r, cDeg);
+      p.stroke(c6);
+      p.fill(c6);
+      p.line(circX, circY, circ_x2, circ_y2);
+      p.circle(circ_x2, circ_y2, 3);
+
+      /* line to wave graph x-axis _*/
+      p.stroke(c2);
+      p.line(Math.max(circX, circ_x2), circ_y2, wavGraph_x, circ_y2);
+      /* wave graph axes _*/
+      p.line(wavGraph_x, circY - r, wavGraph_x, circY + r);
+      drawingCtx.setLineDash([1, 2]);
+      p.line(wavGraph_x, circY, wavGraph_x + wavGraph_w, circY);
+      drawingCtx.setLineDash([]);
+
+      p.stroke(c6);
+      p.fill(c6);
+      p.line(circ_x2, circ_y2, circX, circ_y2);
+      p.circle(circX, circ_y2, 3);
+
+      let cos_line_y = circY + (circ_x2 - circX);
+
+      /* line to wave graph x-axis _*/
+      p.stroke(c2);
+      p.line(Math.max(circX,circ_x2), cos_line_y, wavGraph_x, cos_line_y);
+
+      p.stroke(c4);
+      p.fill(c4);
+      p.circle(circ_x2, circY, 3);
+
+      p.line(circ_x2, circY, circ_x2, cos_line_y);
+
+      p.circle(circ_x2, cos_line_y, 3);
+
+      p.line(circ_x2, cos_line_y, circX, cos_line_y)
+
+
+      p.stroke(c5);
+      p.fill(c5);
+      p.circle(wavGraph_x, cos_line_y, 3);
+
+      p.stroke(c3);
+      p.fill(c3);
+      p.circle(wavGraph_x, circ_y2, 3);
+      let prev_x_sin: number | undefined;
+      let prev_y_sin: number | undefined;
+      let prev_x_cos: number | undefined;
+      let prev_y_cos: number | undefined;
+      for(let i = 0; i < wavGraph_w; i++) {
+        let ix = i + wavGraph_x;
+        let itheta = (cDeg - i*cfg.freq_mod) * (Math.PI / 180);
+        let sinWavY = circY + (r*Math.sin(itheta));
+        let cosWavY = circY + (r*Math.cos(itheta));
+        if(prev_x_cos !== undefined && prev_y_cos !== undefined) {
+          p.stroke(c5);
+          p.line(prev_x_cos, prev_y_cos, ix, cosWavY);
+        }
+        prev_x_cos = ix;
+        prev_y_cos = cosWavY;
+        if(prev_x_sin !== undefined && prev_y_sin !== undefined) {
+          p.stroke(c3);
+          p.line(prev_x_sin, prev_y_sin, ix, sinWavY);
+        }
+        prev_x_sin = ix;
+        prev_y_sin = sinWavY;
+      }
+
+      for(let i = 0; i < wavGraph_w; i++) {
+        let ix = i + wavGraph_x;
+        let itheta = (cDeg - i*cfg.freq_mod) * (Math.PI / 180);
+        let wavY = circY + (r*Math.cos(itheta));
+        if(prev_x_cos !== undefined && prev_y_cos !== undefined) {
+          p.stroke(c5);
+          // p.line(prev_x_cos, prev_y_cos, ix, wavY);
+        }
+        prev_x_cos = ix;
+        prev_y_cos = wavY;
+      }
+    }
+
+    function drawWaveGraph() {
+      let gw = 300;
+      let gh = gw/2;
+      let originX = (sketch_w/2) - (gw/2);
+      let originY = (sketch_h/2) - (gh/2);
+
+      let freq = 0.1;
+      let phase = (p.frameCount/10) % gw;
+
+      p.noFill();
+      p.stroke(0);
+      drawingCtx.setLineDash([1, 2]);
+      p.rect(originX, originY, gw, gh);
+      drawingCtx.setLineDash([]); // unset
+      // p.stroke(0, 150, 70)
+      let prev_x: number | undefined = undefined;
+      let prev_y: number | undefined = undefined;
+      for(let ix = 0; ix < gw; ix++) {
+        let px = ix + originX;
+        let py = (Math.sin(ix * freq + phase) * gh/2) + (originY + gh/2);
+        // console.log(`ix: ${ix}: ${py}`);
+        if(prev_x !== undefined && prev_y !== undefined) {
+          // p.point(px, py);
+          p.line(prev_x, prev_y, px, py);
+        }
+        prev_x = px;
+        prev_y = py;
+      }
+    }
+
+    function drawInfoTxt() {
+      //
+    }
+  }, skBEl);
+}
+
+function init() {
+  let rootEl = document.querySelector<HTMLDivElement>('#p5-ezd-app');
+  if(rootEl === null) {
+    throw new Error('root element is null');
+  }
+  let debugPanelTemplateEl = getHtmlTemplate('#sketch-config-tmplt');
+  let cfgPanelAEl = document.importNode(debugPanelTemplateEl.content, true)
+    .querySelector('div')!;
+  cfgPanelAEl.id = sketch_a_dbg_panel_id;
+  let cfgPanelATitle = cfgPanelAEl.querySelector<HTMLDivElement>('.sk-cfg-title')!;
+  cfgPanelATitle.innerText = 'Sketch Config';
+
+  let cfgMenuATmplt = getHtmlTemplate('#sketch-a-cfg-menu-tmplt');
+  let cfgMenuAEl = document.importNode(cfgMenuATmplt.content, true)
+    .querySelector<HTMLDivElement>('#sk-a-cfg-menu')!;
+
+  let cfgMenuEl = cfgPanelAEl.querySelector<HTMLDivElement>('.sk-cfg-menu')!;
+  cfgMenuEl.appendChild(cfgMenuAEl);
+
+
+  let sketchAAppEl = rootEl.querySelector<HTMLDivElement>('#sketch-a-app')!;
+  sketchAAppEl.appendChild(cfgPanelAEl);
+
+  let sketchATmpltEl = getHtmlTemplate("#sketch-a-tmplt");
+  let sketchARootEl = document.importNode(sketchATmpltEl.content, true)
+    .querySelector<HTMLDivElement>(`#${sketch_a_root_id}`)!;
+  sketchAAppEl.appendChild(sketchARootEl);
+  let sketchAEl = sketchARootEl.querySelector<HTMLDivElement>(`#${sketch_a_id}`)!;
+
+  let sketch_a = new p5((p: p5) => {
+    let bg_color: p5.Color;
+    let sketch_w = sketchAEl.clientWidth;
+    let sketch_h = sketchAEl.clientHeight;
+    let wthObjs: WthObj[] = [];
+
+    let activeBtnEl = cfgMenuAEl.querySelector<HTMLButtonElement>('#sk-a_active-toggle-btn')!;
+    let btnLabelEl = cfgMenuAEl.querySelector<HTMLDivElement>('#sk-a_active-toggle-btn-label')!;
+    let wthActive = true;
+    let resetBtnEl = cfgMenuAEl.querySelector<HTMLButtonElement>('#sk-a_reset-btn')!;
+
+    let bounceInputEl = cfgMenuAEl.querySelector<HTMLDivElement>('#sk-a_bounce')!;
+    let bounceNumInput = bounceInputEl.querySelector<HTMLInputElement>('#sk-a_bounce-input')!;
+
+    let gInputEl = cfgMenuAEl.querySelector<HTMLInputElement>('#sk-a_g-input')!
+
+    p.setup = function setup() {
+      /* constant/global vars _*/
+      bg_color = p.color(255, 255, 255);
+
+      initWthText();
+
+      p.createCanvas(sketch_w, sketch_h);
+    }
+    p.draw = function draw() {
+      // p.background(100, 100, 100);
+      p.background(bg_color);
+      // p.circle(p.mouseX, p.mouseY, 20);
+      updateCfgPanel();
+      drawWthText();
+      drawInfo();
+    }
+
+    function initWthText() {
+      // [ 'what', 'the', 'heck' ].forEach((str) => {
+      'what the heck. omg. wow. wtf, ok ~ lol'.split('').forEach((str) => {
+        let wthObj = new WthObj(str);
+        // wthObj.v = WthObj.init_v;
+        wthObj.y = WthObj.origin_y;
+        wthObjs.push(wthObj);
+      });
+
+      /* === init DOM stuff === _*/
+      bounceNumInput.value = `${WthObj.bounce_mod}`;
+      gInputEl.value = `${WthObj.g}`;
+
+      activeBtnEl.addEventListener('click', ($e) => {
+        wthActive = !wthActive;
+        if(!wthActive) {
+          wthObjs.forEach(wthObj => {
+            wthObj.active = false;
+          });
+        }
+        resetBtnEl.disabled = wthActive;
+      });
+      resetBtnEl.addEventListener('click', ($e) => {
+        wthObjs.forEach(wthObj => {
+          wthObj.v = 0;
+          wthObj.y = WthObj.origin_y;
+        });
+      });
+    }
+    /*
+    Bouncy text. animation
+    _*/
+    function drawWthText() {
+      let origin_x = 50;
+      let origin_y = WthObj.origin_y;
+      let pos_x = 0;
+      let pos_y = 0;
+      let fcMod = p.frameCount % 10;
+      let spaceW = p.textWidth('_');
+      p.textFont('IBM Plex Mono');
+      p.textSize(16);
+      p.fill(127, 120, 50);
+      wthObjs.some(wthObj => {
+        if(wthObj.active !== wthActive && fcMod === 0) {
+          wthObj.active = wthActive;
+          return true;
+        }
+      });
+      wthObjs.forEach(wthObj => {
+        wthObj.step()
+      });
+      wthObjs.forEach(wthObj => {
+        let strW = (wthObj.txt === ' ') ? spaceW : p.textWidth(wthObj.txt);
+        let strX = origin_x + pos_x + wthObj.x;
+        let strY = origin_y + pos_y + wthObj.y;
+        p.text(wthObj.txt, strX, strY);
+        pos_x += strW + 3;
+      });
+
+    }
+
+    function drawInfo() {
+      let fcStr = `fc: ${p.frameCount.toLocaleString()}`;
+      p.textSize(12);
+      p.fill(0);
+      p.text(fcStr, 10, sketch_h - p.textBounds(fcStr, 0,0).h);
+    }
+
+    function updateCfgPanel() {
+      let nextBtnLabelTxt: string | undefined;
+      let nextBtnIsActive = btnLabelEl.dataset?.active === 'true';
+      // console.log(currBtnDataActive);
+      if(nextBtnIsActive !== wthActive) {
+        btnLabelEl.dataset.active = wthActive === true ? 'true' : 'false';
+      }
+      nextBtnLabelTxt = wthActive ? 'stop' : 'start';
+      if(activeBtnEl.innerText !== nextBtnLabelTxt) {
+        activeBtnEl.innerText = nextBtnLabelTxt;
+      }
+
+      /* bounce _*/
+      let currBounceElVal = +bounceNumInput.value.trim();
+      if(currBounceElVal !== WthObj.bounce_mod) {
+        if(!isNaN(currBounceElVal)) {
+          WthObj.bounce_mod = currBounceElVal;
+        }
+      }
+      /* g (gravity) _*/
+      let currGElVal = +gInputEl.value.trim();
+      if(!isNaN(currGElVal) && currGElVal !== WthObj.g) {
+        WthObj.g = currGElVal;
+      }
+
+    }
+  }, sketchAEl);
+}
+
+function getHtmlTemplate(qs: string) {
+  let templateEl = document.querySelector<HTMLTemplateElement>(qs);
+  if(templateEl === null) {
+    throw new Error(`null template '${qs}'`);
+  }
+  return templateEl;
+}
