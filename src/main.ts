@@ -1,5 +1,6 @@
 
-import { geom } from './lib/math/geom';
+import { Quad, QuadNode } from './lib/datastruct/quad';
+import { geom, Point } from './lib/math/geom';
 import './main.css';
 import p5 from 'p5';
 
@@ -17,8 +18,8 @@ let cfg_base_elems: {
 (() => {
   try {
     initElems();
-    // initSketch3();
     init();
+    initSketch3();
     init2();
   } catch(e) {
     console.error(e);
@@ -66,43 +67,205 @@ class WthObj {
 
 function initSketch3() {
   const sk3Id = 'sk-3';
-  let sk3El = createSketchElems(sk3Id);
+  let skElems = createSketchElems(sk3Id);
+  let sk3El = skElems.skEl;
+
+  let resetBtn = createBtnInputElem('sk3_reset-btn', {
+    txt: 'reset',
+  });
+  let inputGroup1 = createInputGroupElem({ children: [ resetBtn.el ] });
+  skElems.cfg.menuEl.appendChild(inputGroup1.el)
+  console.log(skElems);
 
   let sk_3 = new p5((p) => {
     let sketch_w = sk3El.clientWidth;
     let sketch_h = sk3El.clientHeight;
     let bgColor: p5.Color;
     let drawingCtx: CanvasRenderingContext2D;
+    let cnvRenderer: p5.Renderer;
+
+    let c1: p5.Color;
+
+    let quadColors: p5.Color[];
+    const quadPad = 25;
+    let baseQuad: Quad;
+    let qPts: Point[];
 
     p.setup = function setup() {
       bgColor = p.color(255);
-      p.createCanvas(sketch_w, sketch_h);
+      c1 = p.color(10, 150, 100);
+      quadColors = [
+        c1,
+        p.color(200, 0, 0),
+        // p.color(120, 160, 0),
+        p.color(0, 120, 160),
+        p.color(140, 0, 140),
+      ];
+
+      cnvRenderer = p.createCanvas(sketch_w, sketch_h);
       drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+
+      initCfgMenu();
+
+      let tl: Point = {
+        x: quadPad,
+        y: quadPad,
+      };
+      let br: Point = {
+        x: sketch_w - quadPad,
+        y: sketch_h - quadPad,
+      }
+      baseQuad = new Quad(tl, br);
+      qPts = getInitPts();
+      for(let i = 0; i < qPts.length; i++) {
+        let pt = qPts[i];
+        let qNode = new QuadNode(pt, i);
+        baseQuad.insert(qNode);
+      }
+    }
+    function getInitPts(): Point[] {
+      let orig_x = baseQuad.tl.x;
+      let orig_y = baseQuad.tl.y;
+      let qw = baseQuad.w();
+      let qh = baseQuad.h();
+      let mid_x = baseQuad.br.x - (baseQuad.w() / 2);
+      let mid_y = baseQuad.br.y - (baseQuad.h() / 2);
+      let pts: Point[] = [
+        { x: mid_x + 15, y: mid_y + 10  },
+        { x: orig_x + (mid_x - orig_x)/2 + 10, y: orig_y + (mid_y - orig_y)/2 + 10},
+        { x: orig_x + (mid_x - orig_x)/4 + 10, y: orig_y + (mid_y - orig_y)/4 + 10 },
+        { x: orig_x + (mid_x - orig_x)/8 + 10, y: orig_y + (mid_y - orig_y)/8 + 8 },
+        { x: orig_x + (mid_x - orig_x)/16 + 5, y: orig_y + (mid_y - orig_y)/16 + 3 },
+        { x: mid_x + qw/4 - 10, y: orig_y + qh/4 - 10 },
+        { x: mid_x + qw/8 - 10, y: mid_y - qh/8 - 10 },
+        { x: mid_x + qw/16 - 10, y: mid_y - qh/16 - 7 },
+        { x: mid_x + qw/16 + 10, y: mid_y - qh/16 - 7 },
+        // { x: mid_x + qw/16 + (qw/32) + 5, y: mid_y - (qh/16 + qh/32) - 3 },
+        // { x: mid_x + qw/16 - 10, y: mid_y - qh/16 + 7 },
+        // { x: mid_x + qw/32 - 3, y: mid_y - qh/32 + 5 },
+        // { x: mid_x + qw/8 + 10, y: mid_y - qh/8 - 7 },
+      ];
+      return pts;
     }
 
     p.draw = function draw() {
       p.background(bgColor);
-      drawBxs();
+      // p.fill(c1);
+      p.stroke(c1);
+      drawQuads2();
     }
 
-    function drawBxs() {
-      let orig_x = 20;
-      let orig_y = sketch_h/2;
-      let ct = 0;
-      let ix = 0;
-      let padX = 5;
-      while(ct < 20) {
-        let txtStr = `${ct}`;
-        let txtW = p.textWidth(txtStr);
-        p.text(txtStr, orig_x + ix, orig_y);
-        ix += txtW + 1 + padX;
-        ct++;
+    p.mouseClicked = function handleMouseClick($e: MouseEvent) {
+      let boundRect = cnvRenderer.elt.getBoundingClientRect();
+      if(
+        $e.x < boundRect.left
+        || $e.x > boundRect.right
+        || $e.y < boundRect.top
+        || $e.y > boundRect.bottom
+      ) {
+        // do nothing;
+        return;
+      }
+      let pt: Point = {
+        x: Math.round($e.x - boundRect.left),
+        y: Math.round($e.y - boundRect.top)
+      };
+      if(baseQuad.inBound(pt)) {
+        let qn = new QuadNode(pt, qPts.length);
+        baseQuad.insert(qn);
+        qPts.push(qn.pos);
+      }
+    }
+
+    function initCfgMenu() {
+      resetBtn.el.addEventListener('click', ($e) => {
+        baseQuad = new Quad(baseQuad.tl, baseQuad.br);
+        qPts = getInitPts();
+        for(let i = 0; i < qPts.length; i++) {
+          let qNode = new QuadNode(qPts[i], i);
+          baseQuad.insert(qNode);
+        }
+      });
+    }
+
+    function drawQuads2() {
+
+      _drawQuads(baseQuad);
+
+      function _drawQuads(quad: Quad, depth = 0) {
+        // drawQuad(quad, depth);
+        let childQuads = [
+          quad.nw,
+          quad.ne,
+          quad.sw,
+          quad.se
+        ];
+        for(let i = 0; i < childQuads.length; i++) {
+          let childQuad = childQuads[i];
+          if(childQuad !== undefined) {
+            _drawQuads(childQuad, depth + 1);
+          }
+        }
+        drawQuad(quad, depth);
+      }
+    }
+
+    function drawQuad(quad: Quad, depth = 0) {
+      let depthMod = depth % quadColors.length;
+      let qc1 = quadColors[depthMod];
+      p.stroke(qc1);
+      p.noFill();
+      let midPt = quad.getMidPoint();
+
+      if(quad.nw === undefined) {
+        p.line(quad.tl.x, quad.tl.y, midPt.x, quad.tl.y);
+        p.line(quad.tl.x, quad.tl.y, quad.tl.x, midPt.y);
+      }
+      if(quad.ne === undefined) {
+        p.line(midPt.x, quad.tl.y, quad.br.x, quad.tl.y);
+        p.line(quad.br.x, quad.tl.y, quad.br.x, midPt.y);
+      }
+      if(quad.sw === undefined) {
+        p.line(midPt.x, quad.br.y, quad.tl.x, quad.br.y);
+        p.line(quad.tl.x, quad.br.y, quad.tl.x, midPt.y);
+      }
+      if(quad.se === undefined) {
+        p.line(midPt.x, quad.br.y, quad.br.x, quad.br.y);
+        p.line(quad.br.x, quad.br.y, quad.br.x, midPt.y);
+      }
+      // p.rect(quad.tl.x, quad.tl.y, quad.w(), quad.h());
+
+      drawingCtx.setLineDash([1, 2]);
+      if(quad.nw === undefined && quad.ne === undefined) {
+        p.line(midPt.x, quad.tl.y, midPt.x, midPt.y);
+      }
+      if(quad.ne === undefined && quad.se === undefined) {
+        p.line(midPt.x, midPt.y, quad.br.x, midPt.y);
+      }
+      if(quad.sw === undefined && quad.se === undefined) {
+        p.line(midPt.x, midPt.y, midPt.x, quad.br.y);
+      }
+      if(quad.nw === undefined && quad.sw === undefined) {
+        p.line(midPt.x, midPt.y, quad.tl.x, midPt.y);
+      }
+      drawingCtx.setLineDash([]);
+      let qn = quad.n;
+      if(qn !== undefined) {
+        p.circle(qn.pos.x, qn.pos.y, 3);
       }
     }
   }, sk3El);
 }
 
-function createSketchElems(skId: string) {
+function createSketchElems(skId: string): {
+  el: HTMLDivElement;
+  skEl: HTMLDivElement;
+  cfg: {
+    el: HTMLDivElement;
+    titleEl: HTMLDivElement;
+    menuEl: HTMLDivElement;
+  }
+} {
   let rootEl = document.querySelector<HTMLDivElement>('#p5-ezd-app');
   if(rootEl === null) {
     throw new Error('root element is null');
@@ -123,8 +286,28 @@ function createSketchElems(skId: string) {
   }
   // let skEl = document.createElement('div');
   skEl.id = skId;
-  // containerEl.append(skEl);
-  return skEl;
+  /* init config panel */
+  let cfgPanelEl = sketchAppEl.querySelector<HTMLDivElement>('.sk-cfg-panel');
+  if(cfgPanelEl === null) {
+    throw new Error('null config panel elem');
+  }
+  let cfgTitleEl = cfgPanelEl.querySelector<HTMLDivElement>('.sk-cfg-title');
+  if(cfgTitleEl === null) {
+    throw new Error('null config title elem');
+  }
+  let cfgMenuEl = cfgPanelEl.querySelector<HTMLDivElement>('.sk-cfg-menu');
+  if(cfgMenuEl === null) {
+    throw new Error('null config menu elem');
+  }
+  return {
+    el: sketchAppEl,
+    skEl: skEl,
+    cfg: {
+      el: cfgPanelEl,
+      titleEl: cfgTitleEl,
+      menuEl: cfgMenuEl,
+    },
+  }
 }
 
 function initElems() {
@@ -224,7 +407,8 @@ function initSketchB() {
 
   /* init menu/dom _*/
   const sk_b_id = 'sketch-b';
-  let skBEl = createSketchElems(sk_b_id);
+  let skElems = createSketchElems(sk_b_id);
+  let skBEl = skElems.skEl;
   const cfg_default = {
     circ_d: 100,
     rot_mod: 2,
@@ -284,8 +468,7 @@ function initSketchB() {
 
     p.draw = function draw() {
       p.background(bg_color);
-      /*  */
-      // drawWaveGraph();
+
       drawCircWav();
       drawInfoTxt();
 
@@ -441,48 +624,6 @@ function initSketchB() {
         }
         prev_x_sin = ix;
         prev_y_sin = sinWavY;
-      }
-
-      for(let i = 0; i < wavGraph_w; i++) {
-        let ix = i + wavGraph_x;
-        let itheta = (cDeg - i*cfg.freq_mod) * (Math.PI / 180);
-        let wavY = circY + (r*Math.cos(itheta));
-        if(prev_x_cos !== undefined && prev_y_cos !== undefined) {
-          p.stroke(c5);
-          // p.line(prev_x_cos, prev_y_cos, ix, wavY);
-        }
-        prev_x_cos = ix;
-        prev_y_cos = wavY;
-      }
-    }
-
-    function drawWaveGraph() {
-      let gw = 300;
-      let gh = gw/2;
-      let originX = (sketch_w/2) - (gw/2);
-      let originY = (sketch_h/2) - (gh/2);
-
-      let freq = 0.1;
-      let phase = (p.frameCount/10) % gw;
-
-      p.noFill();
-      p.stroke(0);
-      drawingCtx.setLineDash([1, 2]);
-      p.rect(originX, originY, gw, gh);
-      drawingCtx.setLineDash([]); // unset
-      // p.stroke(0, 150, 70)
-      let prev_x: number | undefined = undefined;
-      let prev_y: number | undefined = undefined;
-      for(let ix = 0; ix < gw; ix++) {
-        let px = ix + originX;
-        let py = (Math.sin(ix * freq + phase) * gh/2) + (originY + gh/2);
-        // console.log(`ix: ${ix}: ${py}`);
-        if(prev_x !== undefined && prev_y !== undefined) {
-          // p.point(px, py);
-          p.line(prev_x, prev_y, px, py);
-        }
-        prev_x = px;
-        prev_y = py;
       }
     }
 
