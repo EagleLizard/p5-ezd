@@ -10,6 +10,10 @@
     height: 300px; */
   }
   .sketch-main {
+    #sk-3-root {
+      width: var(--sketch-width);
+      height: calc(var(--sketch-height) * 1.25);
+    }
     .sk-app {
       padding-bottom: 3rem;
       display: flex;

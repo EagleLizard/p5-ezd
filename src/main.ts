@@ -18,9 +18,9 @@ let cfg_base_elems: {
 (() => {
   try {
     initElems();
-    init();
     initSketch3();
     init2();
+    init();
   } catch(e) {
     console.error(e);
     throw e;
@@ -75,7 +75,6 @@ function initSketch3() {
   });
   let inputGroup1 = createInputGroupElem({ children: [ resetBtn.el ] });
   skElems.cfg.menuEl.appendChild(inputGroup1.el)
-  console.log(skElems);
 
   let sk_3 = new p5((p) => {
     let sketch_w = sk3El.clientWidth;
@@ -259,6 +258,7 @@ function initSketch3() {
 
 function createSketchElems(skId: string): {
   el: HTMLDivElement;
+  rootEl: HTMLDivElement;
   skEl: HTMLDivElement;
   cfg: {
     el: HTMLDivElement;
@@ -280,7 +280,14 @@ function createSketchElems(skId: string): {
   sketchAppEl.id = `${skId}-app`;
   skMainEl.appendChild(sketchAppEl);
   /* init dom/menu */
-  let skEl = sketchAppEl.querySelector<HTMLDivElement>('.sk-root .sketch');
+  let skRootEl = sketchAppEl.querySelector<HTMLDivElement>('.sk-root');
+  if(skRootEl === null) {
+    throw new Error('missing sketch root element');
+  }
+  let skRootId = `${skId}-root`;
+  skRootEl.id = skRootId;
+
+  let skEl = skRootEl.querySelector<HTMLDivElement>('.sketch');
   if(skEl === null) {
     throw new Error('missing sketch container element');
   }
@@ -302,6 +309,7 @@ function createSketchElems(skId: string): {
   return {
     el: sketchAppEl,
     skEl: skEl,
+    rootEl: skRootEl,
     cfg: {
       el: cfgPanelEl,
       titleEl: cfgTitleEl,
@@ -360,6 +368,7 @@ type BtnElem = {
 function createBtnInputElem(elId: string, opts: {
   txt?: string;
   labelTxt?: string;
+  disabled?: boolean;
 } = {}): BtnElem {
   let btnEl = cfg_base_elems.btnInputBase.cloneNode(true) as HTMLDivElement;
   let btnInputEl = btnEl.querySelector<HTMLButtonElement>('button.sk-btn')!;
@@ -367,6 +376,9 @@ function createBtnInputElem(elId: string, opts: {
   btnInputEl.id = elId;
   if(opts.txt !== undefined) {
     btnInputEl.innerText = opts.txt;
+  }
+  if(opts.disabled !== undefined) {
+    btnInputEl.disabled = opts.disabled;
   }
   if(opts.labelTxt !== undefined) {
     btnLabelEl.innerText = opts.labelTxt;
@@ -416,17 +428,6 @@ function initSketchB() {
   };
   let cfg = Object.assign({}, cfg_default);
 
-  /* init config menu els  _*/
-  let skAppEl = document.querySelector<HTMLDivElement>(`#${sk_b_id}-app`);
-  if(skAppEl === null) {
-    throw new Error('null sketch-b app element');
-  }
-  let cfgMenuEl = skAppEl?.querySelector<HTMLDivElement>('.sk-cfg-menu');
-  if(cfgMenuEl === null) {
-    throw new Error('null config menu elem');
-  }
-
-
   let resetBtn = createBtnInputElem('skB_reset-btn', {
     txt: 'reset',
   });
@@ -447,8 +448,8 @@ function initSketchB() {
     rotInput.el,
   ]});
 
-  cfgMenuEl.appendChild(inputGroup1.el);
-  cfgMenuEl.appendChild(inputGroup2.el);
+  skElems.cfg.menuEl.appendChild(inputGroup1.el);
+  skElems.cfg.menuEl.appendChild(inputGroup2.el);
 
 
   let sketch_b = new p5((p) => {
@@ -634,49 +635,42 @@ function initSketchB() {
 }
 
 function init() {
-  let rootEl = document.querySelector<HTMLDivElement>('#p5-ezd-app');
-  if(rootEl === null) {
-    throw new Error('root element is null');
-  }
-  let debugPanelTemplateEl = getHtmlTemplate('#sketch-config-tmplt');
-  let cfgPanelAEl = document.importNode(debugPanelTemplateEl.content, true)
-    .querySelector('div')!;
-  cfgPanelAEl.id = sketch_a_dbg_panel_id;
-  let cfgPanelATitle = cfgPanelAEl.querySelector<HTMLDivElement>('.sk-cfg-title')!;
-  cfgPanelATitle.innerText = 'Sketch Config';
+  let skElems = createSketchElems('sketch-a');
+  let skAEl = skElems.skEl;
 
-  let cfgMenuATmplt = getHtmlTemplate('#sketch-a-cfg-menu-tmplt');
-  let cfgMenuAEl = document.importNode(cfgMenuATmplt.content, true)
-    .querySelector<HTMLDivElement>('#sk-a-cfg-menu')!;
+  let activeBtn = createBtnInputElem('sk-a_active-toggle-btn', {
+    txt: 'stop'
+  });
+  let resetBtn = createBtnInputElem('sk-a_reset-btn', {
+    txt: 'reset',
+    disabled: true,
+  });
+  let inputGroup1 = createInputGroupElem({
+    children: [ activeBtn.el, resetBtn.el ],
+  });
 
-  let cfgMenuEl = cfgPanelAEl.querySelector<HTMLDivElement>('.sk-cfg-menu')!;
-  cfgMenuEl.appendChild(cfgMenuAEl);
+  let bounceInput = createNumInputElem('sk-a_bounce', {
+    labelTxt: 'bounce',
+    step: 0.05,
+  });
+  let gInput = createNumInputElem('sk-a_g-input', {
+    labelTxt: 'g',
+    step: 0.01,
+  });
+  let inputGroup2 = createInputGroupElem({
+    children: [ bounceInput.el, gInput.el ],
+  });
 
-
-  let sketchAAppEl = rootEl.querySelector<HTMLDivElement>('#sketch-a-app')!;
-  sketchAAppEl.appendChild(cfgPanelAEl);
-
-  let sketchATmpltEl = getHtmlTemplate("#sketch-a-tmplt");
-  let sketchARootEl = document.importNode(sketchATmpltEl.content, true)
-    .querySelector<HTMLDivElement>(`#${sketch_a_root_id}`)!;
-  sketchAAppEl.appendChild(sketchARootEl);
-  let sketchAEl = sketchARootEl.querySelector<HTMLDivElement>(`#${sketch_a_id}`)!;
+  skElems.cfg.menuEl.appendChild(inputGroup1.el);
+  skElems.cfg.menuEl.appendChild(inputGroup2.el);
 
   let sketch_a = new p5((p: p5) => {
     let bg_color: p5.Color;
-    let sketch_w = sketchAEl.clientWidth;
-    let sketch_h = sketchAEl.clientHeight;
+    let sketch_w = skAEl.clientWidth;
+    let sketch_h = skAEl.clientHeight;
     let wthObjs: WthObj[] = [];
 
-    let activeBtnEl = cfgMenuAEl.querySelector<HTMLButtonElement>('#sk-a_active-toggle-btn')!;
-    let btnLabelEl = cfgMenuAEl.querySelector<HTMLDivElement>('#sk-a_active-toggle-btn-label')!;
     let wthActive = true;
-    let resetBtnEl = cfgMenuAEl.querySelector<HTMLButtonElement>('#sk-a_reset-btn')!;
-
-    let bounceInputEl = cfgMenuAEl.querySelector<HTMLDivElement>('#sk-a_bounce')!;
-    let bounceNumInput = bounceInputEl.querySelector<HTMLInputElement>('#sk-a_bounce-input')!;
-
-    let gInputEl = cfgMenuAEl.querySelector<HTMLInputElement>('#sk-a_g-input')!
 
     p.setup = function setup() {
       /* constant/global vars _*/
@@ -705,19 +699,19 @@ function init() {
       });
 
       /* === init DOM stuff === _*/
-      bounceNumInput.value = `${WthObj.bounce_mod}`;
-      gInputEl.value = `${WthObj.g}`;
+      bounceInput.inputEl.value = `${WthObj.bounce_mod}`;
+      gInput.inputEl.value = `${WthObj.g}`;
 
-      activeBtnEl.addEventListener('click', ($e) => {
+      activeBtn.btnEl.addEventListener('click', ($e) => {
         wthActive = !wthActive;
         if(!wthActive) {
           wthObjs.forEach(wthObj => {
             wthObj.active = false;
           });
         }
-        resetBtnEl.disabled = wthActive;
+        resetBtn.btnEl.disabled = wthActive;
       });
-      resetBtnEl.addEventListener('click', ($e) => {
+      resetBtn.btnEl.addEventListener('click', ($e) => {
         wthObjs.forEach(wthObj => {
           wthObj.v = 0;
           wthObj.y = WthObj.origin_y;
@@ -765,31 +759,30 @@ function init() {
 
     function updateCfgPanel() {
       let nextBtnLabelTxt: string | undefined;
-      let nextBtnIsActive = btnLabelEl.dataset?.active === 'true';
-      // console.log(currBtnDataActive);
+      let nextBtnIsActive = resetBtn.btnEl.dataset?.active === 'true';
       if(nextBtnIsActive !== wthActive) {
-        btnLabelEl.dataset.active = wthActive === true ? 'true' : 'false';
+        resetBtn.btnEl.dataset.active = wthActive === true ? 'true' : 'false';
       }
       nextBtnLabelTxt = wthActive ? 'stop' : 'start';
-      if(activeBtnEl.innerText !== nextBtnLabelTxt) {
-        activeBtnEl.innerText = nextBtnLabelTxt;
+      if(activeBtn.btnEl.innerText !== nextBtnLabelTxt) {
+        activeBtn.btnEl.innerText = nextBtnLabelTxt;
       }
 
       /* bounce _*/
-      let currBounceElVal = +bounceNumInput.value.trim();
+      let currBounceElVal = +bounceInput.inputEl.value.trim();
       if(currBounceElVal !== WthObj.bounce_mod) {
         if(!isNaN(currBounceElVal)) {
           WthObj.bounce_mod = currBounceElVal;
         }
       }
       /* g (gravity) _*/
-      let currGElVal = +gInputEl.value.trim();
+      let currGElVal = +gInput.inputEl.value.trim();
       if(!isNaN(currGElVal) && currGElVal !== WthObj.g) {
         WthObj.g = currGElVal;
       }
 
     }
-  }, sketchAEl);
+  }, skAEl);
 }
 
 function getHtmlTemplate(qs: string) {
