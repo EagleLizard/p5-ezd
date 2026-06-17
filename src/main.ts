@@ -1,12 +1,8 @@
 
-import { Quad, QuadNode } from './lib/datastruct/quad';
-import { geom, Point } from './lib/math/geom';
 import './main.css';
 import p5 from 'p5';
-
-const sketch_a_root_id = 'sketch-a-root';
-const sketch_a_id = 'sketch-a';
-const sketch_a_dbg_panel_id = 'sketch-a-panel';
+import { Quad, QuadNode } from './lib/datastruct/quad';
+import { geom, Point } from './lib/math/geom';
 
 let cfg_base_elems: {
   cfgTmplt: HTMLTemplateElement;
@@ -15,17 +11,225 @@ let cfg_base_elems: {
   btnInputBase: HTMLDivElement;
 };
 
+let sk_list: IEzdSketch[] = [];
+let curr_sk_idx = 0;
+
 (() => {
   try {
-    initElems();
+    initTemplateElems();
+
+    initSketches();
     initSketch3();
     init2();
-    init();
+    init1();
   } catch(e) {
     console.error(e);
     throw e;
   }
 })();
+
+type SkApp = {
+  head: {
+    el: HTMLDivElement;
+    title: {
+      el: HTMLDivElement;
+      textEl: HTMLHeadingElement;
+    }
+    tools: {
+      el: HTMLDivElement;
+      prevBtn: BtnElem;
+      nextBtn: BtnElem;
+    }
+  }
+};
+
+function initApp(): SkApp {
+  let headEl = document.querySelector<HTMLDivElement>('#app-head')!;
+  let toolbarEl = headEl.querySelector<HTMLDivElement>('.toolbar')!;
+  let titleEl = headEl.querySelector<HTMLDivElement>('.title')!;
+  let titleTextEl = titleEl.querySelector<HTMLHeadingElement>('.title-text')!;
+
+  let prevBtn = createBtnInputElem('prev-sk-btn', { txt: 'prev', disabled: true });
+  let nextBtn = createBtnInputElem('prev-sk-btn', { txt: 'next' });
+  let inputGroup1 = createInputGroupElem({ children: [ prevBtn.el, nextBtn.el ]});
+  toolbarEl.appendChild(inputGroup1.el);
+
+  let skApp: SkApp = {
+    head: {
+      el: headEl,
+      tools: {
+        el: toolbarEl,
+        prevBtn: prevBtn,
+        nextBtn: nextBtn,
+      },
+      title: {
+        el: titleEl,
+        textEl: titleTextEl,
+      },
+    },
+  };
+  return skApp;
+}
+
+type IEzdSketch = {
+  id: string;
+  init: () => void;
+  destroy: () => void;
+};
+
+function initSketches() {
+  let skApp = initApp();
+
+  let skc1 = initSketchC1();
+  let skc2 = initSkC2();
+  sk_list.push(skc1);
+  sk_list.push(skc2);
+  sk_init();
+
+  /* -- init app functionality -- */
+  skApp.head.tools.nextBtn.btnEl.addEventListener('click', ($e) => {
+    set_sk(curr_sk_idx + 1);
+  });
+  skApp.head.tools.prevBtn.btnEl.addEventListener('click', ($e) => {
+    set_sk(curr_sk_idx - 1);
+  });
+  function set_sk(sk_idx: number) {
+    if(sk_idx === curr_sk_idx) {
+      return;
+    }
+    if(sk_idx < 0 || sk_idx >= sk_list.length) {
+      throw new Error(`Range error: invalid sk_idx: ${sk_idx}`);
+    }
+    /* delete current active sketch */
+    sk_list[curr_sk_idx].destroy();
+    curr_sk_idx = sk_idx;
+    skApp.head.title.textEl.innerText = sk_list[curr_sk_idx].id;
+    sk_init();
+    if(curr_sk_idx > 0 && skApp.head.tools.prevBtn.btnEl.disabled) {
+      skApp.head.tools.prevBtn.btnEl.disabled = false;
+    }
+    if(curr_sk_idx >= sk_list.length - 1 && !skApp.head.tools.prevBtn.btnEl.disabled) {
+      skApp.head.tools.nextBtn.btnEl.disabled = true;
+    }
+    if(curr_sk_idx < sk_list.length - 1 && skApp.head.tools.nextBtn.btnEl.disabled) {
+      skApp.head.tools.nextBtn.btnEl.disabled = false;
+    }
+    if(curr_sk_idx <= 0 && !skApp.head.tools.prevBtn.btnEl.disabled) {
+      skApp.head.tools.prevBtn.btnEl.disabled = true;
+    }
+  }
+  function sk_init(sk_idx: number = curr_sk_idx) {
+    let sk = sk_list[sk_idx];
+    skApp.head.title.textEl.innerText = sk.id;
+    sk.init();
+  }
+}
+
+function initSkC2(): IEzdSketch {
+  const skId = 'sk-c2';
+  let skElems: SkElems;
+  let skp5: p5;
+  let ezdSk: IEzdSketch;
+  let _initialized = false;
+
+  ezdSk = {
+    id: skId,
+    init: init,
+    destroy: destroy,
+  };
+  return ezdSk;
+
+  function init() {
+    if(_initialized) {
+      return;
+    }
+    initElems();
+    initSkc2();
+    _initialized = true;
+  }
+  function destroy() {
+    skp5.remove();
+    skElems.el.remove();
+    _initialized = false;
+  }
+  function initElems() {
+    skElems = createSketchElems('sk-c2');
+    console.log(skElems);
+  }
+  function initSkc2() {
+    skp5 = new p5((p) => {
+      let drawingCtx: CanvasRenderingContext2D;
+      let cnvRenderer: p5.Renderer;
+      p.setup = function setup() {
+        cnvRenderer = p.createCanvas(skElems.skEl.clientWidth, skElems.skEl.clientWidth);
+        drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+        p.textFont('IBM Plex Mono', 12);
+      }
+      p.draw = function draw() {
+        let textPad = 10;
+        p.fill(255, 0, 0);
+        p.text(skId, textPad, textPad + p.textSize());
+      }
+    }, skElems.skEl)
+  }
+}
+
+function initSketchC1(): IEzdSketch {
+  const skId = 'sk-c1';
+  let skElems: SkElems;
+  let skc1p5: p5;
+  let initialized = false;
+
+  return {
+    id: skId,
+    init: init,
+    destroy: destroy,
+  }
+  function init() {
+    if(initialized) {
+      return;
+    }
+    initElems();
+    initSkc1();
+    initialized = true;
+  }
+  function destroy() {
+    skc1p5.remove();
+    skElems.el.remove();
+    // console.log(skElems);
+    initialized = false;
+  }
+  function initElems() {
+    skElems = createSketchElems(skId);
+    let resetBtn = createBtnInputElem('sk-c1_reset-btn', { txt: 'reset' });
+    let deleteBtn = createBtnInputElem('sk-c1_delete-btn', { txt: 'del' });
+    let inputGroup1 = createInputGroupElem({ children: [ resetBtn.el, deleteBtn.el ] });
+    skElems.cfg.menuEl.appendChild(inputGroup1.el);
+
+    /* -- Event Handlers -- */
+    deleteBtn.btnEl.addEventListener('click', ($e) => {
+      // console.log(skc1p5);
+      destroy();
+    });
+  }
+  function initSkc1() {
+    skc1p5 = new p5((p) => {
+      let sketch_w = skElems.skEl.clientWidth;
+      let sketch_h = skElems.skEl.clientHeight;
+      let drawingCtx: CanvasRenderingContext2D;
+      let cnvRenderer: p5.Renderer;
+      p.setup = function setup() {
+        cnvRenderer = p.createCanvas(sketch_w, sketch_h);
+        drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+        p.textFont('IBM Plex Mono', 12);
+      }
+      p.draw = function draw() {
+        let txtPad = 15;
+        p.text(skId, txtPad, txtPad + p.textSize());
+      }
+    }, skElems.skEl);
+  }
+}
 
 class WthObj {
   static init_v = -7;
@@ -152,6 +356,7 @@ function initSketch3() {
       // p.fill(c1);
       p.stroke(c1);
       drawQuads2();
+      drawMouseEffects();
     }
 
     p.mouseClicked = function handleMouseClick($e: MouseEvent) {
@@ -185,6 +390,12 @@ function initSketch3() {
           baseQuad.insert(qNode);
         }
       });
+    }
+
+    function drawMouseEffects() {
+      p.noFill();
+      p.stroke(c1);
+
     }
 
     function drawQuads2() {
@@ -256,7 +467,7 @@ function initSketch3() {
   }, sk3El);
 }
 
-function createSketchElems(skId: string): {
+type SkElems = {
   el: HTMLDivElement;
   rootEl: HTMLDivElement;
   skEl: HTMLDivElement;
@@ -265,7 +476,9 @@ function createSketchElems(skId: string): {
     titleEl: HTMLDivElement;
     menuEl: HTMLDivElement;
   }
-} {
+} & {};
+
+function createSketchElems(skId: string): SkElems {
   let rootEl = document.querySelector<HTMLDivElement>('#p5-ezd-app');
   if(rootEl === null) {
     throw new Error('root element is null');
@@ -318,7 +531,7 @@ function createSketchElems(skId: string): {
   }
 }
 
-function initElems() {
+function initTemplateElems() {
   let cfgTmpltEl = getHtmlTemplate('#sk-cfg-components-tmplt');
   cfg_base_elems = {
     cfgTmplt: cfgTmpltEl,
@@ -402,7 +615,6 @@ function createInputGroupElem(opts: {
     inputGroupElem.id = opts.elId;
   }
   for(let i = 0; i < children.length; i++) {
-    console.log(children[i]);
     inputGroupElem.appendChild(children[i]);
   }
   return {
@@ -634,7 +846,7 @@ function initSketchB() {
   }, skBEl);
 }
 
-function init() {
+function init1() {
   let skElems = createSketchElems('sketch-a');
   let skAEl = skElems.skEl;
 
