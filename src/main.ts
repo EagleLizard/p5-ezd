@@ -236,34 +236,8 @@ function initEzdSk(skId: string, skFn: (skElems: SkElems) => p5): IEzdSketch {
 
 function sketch3Init() {
   const skId = 'sk-3';
-  let skElems: SkElems;
-  let sk3p5: p5;
-  let _initialized = false;
 
-  let ezdSk: IEzdSketch = {
-    id: skId,
-    init: init,
-    destroy: destroy,
-  };
-  return ezdSk;
-
-  function init() {
-    if(_initialized) {
-      return;
-    }
-    initElems();
-    initSk3();
-    _initialized = true;
-  }
-  function destroy() {
-    sk3p5.remove();
-    skElems.el.remove();
-    _initialized = false;
-  }
-  function initElems() {
-    skElems = createSketchElems(skId);
-  }
-  function initSk3() {
+  return initEzdSk(skId, (skElems) => {
     let resetBtn = createBtnInputElem('sk3_reset-btn', {
       txt: 'reset',
     });
@@ -277,7 +251,7 @@ function sketch3Init() {
     skElems.cfg.menuEl.appendChild(inputGroup1.el);
     skElems.cfg.menuEl.appendChild(inputGroup2.el);
 
-    sk3p5 = new p5((p) => {
+    return new p5((p) => {
       let sketch_w = skElems.skEl.clientWidth;
       let sketch_h = skElems.skEl.clientHeight;
       let bgColor: p5.Color;
@@ -506,38 +480,12 @@ function sketch3Init() {
         }
       }
     }, skElems.skEl);
-  }
+  });
 }
 
 function sketchBInit() {
   const skId = 'sk-b';
-  let skElems: SkElems;
-  let skbp5: p5;
-  let _initialized = false;
-
-  let ezdSk: IEzdSketch = {
-    id: skId,
-    init: init,
-    destroy: destroy,
-  };
-  return ezdSk;
-  function init() {
-    if(_initialized) {
-      return;
-    }
-    initElems();
-    initSkb();
-    _initialized = true;
-  }
-  function destroy() {
-    skbp5.remove();
-    skElems.el.remove();
-    _initialized = false;
-  }
-  function initElems() {
-    skElems = createSketchElems(skId);
-  }
-  function initSkb() {
+  return initEzdSk(skId, (skElems) => {
     const cfg_default = {
       circ_d: 100,
       rot_mod: 2,
@@ -567,8 +515,7 @@ function sketchBInit() {
 
     skElems.cfg.menuEl.appendChild(inputGroup1.el);
     skElems.cfg.menuEl.appendChild(inputGroup2.el);
-
-    skbp5 = new p5((p) => {
+    return new p5((p) => {
       let bg_color: p5.Color;
       let sketch_w = skElems.skEl.clientWidth;
       let sketch_h = skElems.skEl.clientHeight;
@@ -750,39 +697,12 @@ function sketchBInit() {
         //
       }
     }, skElems.skEl);
-  }
+  });
 }
 
 function initSketchA(): IEzdSketch {
   const skId = 'sketch-a';
-  let skElems: SkElems;
-  let skap5: p5;
-  let _initialized = false;
-
-  let ezdSk: IEzdSketch = {
-    id: skId,
-    init: init,
-    destroy: destroy,
-  };
-  return ezdSk;
-  function init() {
-    if(_initialized) {
-      return;
-    }
-    initElems();
-    initSka1();
-    _initialized = true;
-  }
-  function destroy() {
-    skap5.remove();
-    skElems.el.remove();
-    // console.log(skElems);
-    _initialized = false;
-  }
-  function initElems() {
-    skElems = createSketchElems(skId);
-  }
-  function initSka1() {
+  return initEzdSk(skId, (skElems) => {
     let activeBtn = createBtnInputElem('sk-a_active-toggle-btn', {
       txt: 'stop',
     });
@@ -809,7 +729,7 @@ function initSketchA(): IEzdSketch {
     skElems.cfg.menuEl.appendChild(inputGroup1.el);
     skElems.cfg.menuEl.appendChild(inputGroup2.el);
 
-    skap5 = new p5((p) => {
+    return new p5((p) => {
       let bg_color: p5.Color;
       let sketch_w = skElems.skEl.clientWidth;
       let sketch_h = skElems.skEl.clientHeight;
@@ -926,7 +846,7 @@ function initSketchA(): IEzdSketch {
         }
       }
     }, skElems.skEl);
-  }
+  });
 }
 
 class WthObj {
