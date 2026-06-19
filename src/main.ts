@@ -2,7 +2,7 @@
 import './main.css';
 import p5 from 'p5';
 import { Quad, QuadNode } from './lib/datastruct/quad';
-import { geom, Point, Rect } from './lib/math/geom';
+import { geom, Point } from './lib/math/geom';
 
 let cfg_base_elems: {
   cfgTmplt: HTMLTemplateElement;
