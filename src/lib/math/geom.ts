@@ -14,18 +14,18 @@ function endPoint(
   y1: number,
   len: number,
   degs: number
-): [x2: number, y2: number] {
+): Point {
   let theta = degs * (Math.PI / 180);
   let x2 = x1 + len * Math.cos(theta);
   let y2 = y1 + len * Math.sin(theta);
-  return [ x2, y2 ];
+  return { x: x2, y: y2 };
 }
 
 function dist(p1: Point, p2: Point, opts = { rel: false }) {
   /* a^2 + b^2 = c^2 */
-  let dx = Math.abs(p1.x - p2.x);
-  let dy = Math.abs(p1.y - p2.y);
-  let relDist = dx^2 + dy^2;
+  let dx = p2.x - p1.x;
+  let dy = p2.y - p1.y;
+  let relDist = dx**2 + dy**2;
   if(opts.rel) {
     return relDist;
   }

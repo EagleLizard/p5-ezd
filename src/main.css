@@ -1,23 +1,41 @@
 
+/* shared variables */
+
 :root {
   --sketch-width: 500px;
   --sketch-height: 300px;
 }
+
+/* base style */
+
+h2 {
+  margin-block: 0.25rem;
+}
+
+/* app style */
 
 #p5-ezd-app {
   #sketch-b {
     /* width: 500px;
     height: 300px; */
   }
-  #app-head {
-    .toolbar {
-      margin-bottom: 0.5rem;
-      .cfg-input-group {
-        display: flex;
-        column-gap: 0.5rem;
-        row-gap: 0.25rem;
-      }
+  .app-head {
+    margin-bottom: 0.3rem;
+    .head-row {
+      display: flex;
+      align-items: center;
     }
+    .title {
+      margin-left: 0.66rem;
+    }
+    .toolbar {
+
+    }
+  }
+  .cfg-input-group {
+    display: flex;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
   }
   .sketch-main {
     #sk-3-root {

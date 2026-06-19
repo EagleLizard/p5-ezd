@@ -2,7 +2,7 @@
 import './main.css';
 import p5 from 'p5';
 import { Quad, QuadNode } from './lib/datastruct/quad';
-import { geom, Point } from './lib/math/geom';
+import { geom, Point, Rect } from './lib/math/geom';
 
 let cfg_base_elems: {
   cfgTmplt: HTMLTemplateElement;
@@ -36,6 +36,9 @@ type SkApp = {
       prevBtn: BtnElem;
       nextBtn: BtnElem;
     }
+    skSelect: {
+      el: HTMLDivElement,
+    }
   }
 };
 
@@ -43,6 +46,7 @@ function initApp(): SkApp {
   let headEl = document.querySelector<HTMLDivElement>('#app-head')!;
   let toolbarEl = headEl.querySelector<HTMLDivElement>('.toolbar')!;
   let titleEl = headEl.querySelector<HTMLDivElement>('.title')!;
+  let skSelectEl = headEl.querySelector<HTMLDivElement>('.sk-select')!;
   let titleTextEl = titleEl.querySelector<HTMLHeadingElement>('.title-text')!;
 
   let prevBtn = createBtnInputElem('prev-sk-btn', { txt: 'prev', disabled: true });
@@ -62,6 +66,9 @@ function initApp(): SkApp {
         el: titleEl,
         textEl: titleTextEl,
       },
+      skSelect: {
+        el: skSelectEl,
+      }
     },
   };
   return skApp;
@@ -75,9 +82,29 @@ type IEzdSketch = {
 
 function initSketches() {
   let skApp = initApp();
+  sk_list.push(getSk4());
   sk_list.push(sketch3Init());
   sk_list.push(sketchBInit());
   sk_list.push(initSketchA());
+
+  let skBtns: {
+    skId: string;
+    btn: BtnElem;
+  }[] = [];
+  sk_list.forEach(sk => {
+    let btnElem = createBtnInputElem(`sk-select-menu-btn_${sk.id}`, {
+      txt: sk.id,
+    });
+    skBtns.push({
+      skId: sk.id,
+      btn: btnElem,
+    });
+  });
+  let skSelectInputGroup = createInputGroupElem({
+    children: skBtns.map(skBtn => skBtn.btn.el),
+  });
+  skApp.head.skSelect.el.appendChild(skSelectInputGroup.el);
+
   sk_init();
 
   /* -- init app functionality -- */
@@ -86,6 +113,14 @@ function initSketches() {
   });
   skApp.head.tools.prevBtn.btnEl.addEventListener('click', ($e) => {
     set_sk(curr_sk_idx - 1);
+  });
+  skBtns.forEach(skBtn => {
+    skBtn.btn.btnEl.addEventListener('click', ($e) => {
+      let skIdx = sk_list.findIndex(sk => sk.id === skBtn.skId);
+      if(skIdx !== -1) {
+        set_sk(skIdx);
+      }
+    });
   });
 
   /* --- util functions --- */
@@ -118,6 +153,84 @@ function initSketches() {
     let sk = sk_list[sk_idx];
     skApp.head.title.textEl.innerText = sk.id;
     sk.init();
+    for(let i = 0; i < skBtns.length; i++) {
+      let skBtn = skBtns[i];
+      if(skBtn.skId === sk.id && !skBtn.btn.btnEl.disabled) {
+        skBtn.btn.btnEl.disabled = true;
+      } else if(skBtn.skId !== sk.id && skBtn.btn.btnEl.disabled) {
+        skBtn.btn.btnEl.disabled = false;
+      }
+    }
+  }
+}
+
+function getSk4(): IEzdSketch {
+  const skId = 'sk-4';
+  return initEzdSk(skId, (skEls: SkElems) => {
+    let sk4p5 = new p5((p) => {
+      let sketch_w = skEls.skEl.clientWidth;
+      let sketch_h = skEls.skEl.clientHeight;
+      let drawingCtx: CanvasRenderingContext2D;
+      let cnvRenderer: p5.Renderer;
+      let t: ReturnType<typeof initColors>;
+      let mid_pt: Point = {
+        x: Math.round(sketch_w/2),
+        y: Math.round(sketch_h/2),
+      };
+
+      p.setup = setup;
+      p.draw = draw;
+
+      function draw() {
+        p.background(t.bg);
+
+        p.noFill()
+        p.stroke(t.c1);
+      }
+
+      function setup() {
+        t = initColors(p);
+        cnvRenderer = p.createCanvas(sketch_w, sketch_h);
+        drawingCtx = p.drawingContext as CanvasRenderingContext2D;
+        p.textFont('IBM Plex Mono');
+      }
+    }, skEls.skEl);
+    return sk4p5;
+
+    function initColors(p: p5) {
+        const t = {
+          bg: p.color(20),
+          txt1: p.color(240),
+          c1: p.color(240),
+        };
+        return t;
+      }
+  });
+}
+
+function initEzdSk(skId: string, skFn: (skElems: SkElems) => p5): IEzdSketch {
+  let skEls: SkElems;
+  let skp5: p5;
+  let _init = false;
+  let ezdSk: IEzdSketch = {
+    id: skId,
+    init: init,
+    destroy: destroy,
+  };
+  return ezdSk;
+
+  function init() {
+    if(_init) {
+      return;
+    }
+    skEls = createSketchElems(skId);
+    skp5 = skFn(skEls);
+    _init = true;
+  }
+  function destroy() {
+    skp5.remove();
+    skEls.el.remove();
+    _init = false;
   }
 }
 
@@ -155,7 +268,14 @@ function sketch3Init() {
       txt: 'reset',
     });
     let inputGroup1 = createInputGroupElem({ children: [ resetBtn.el ] });
+
+    let balanceBtn = createBtnInputElem('sk3_balance-btn', {
+      txt: 'balance',
+    })
+    let inputGroup2 = createInputGroupElem({ children: [ balanceBtn.el ] });
+
     skElems.cfg.menuEl.appendChild(inputGroup1.el);
+    skElems.cfg.menuEl.appendChild(inputGroup2.el);
 
     sk3p5 = new p5((p) => {
       let sketch_w = skElems.skEl.clientWidth;
@@ -170,6 +290,8 @@ function sketch3Init() {
       const quadPad = 25;
       let baseQuad: Quad;
       let qPts: Point[];
+      let minMsPt: Point | undefined;
+      let mouseQuad: Quad | undefined;
 
       p.setup = function setup() {
         bgColor = p.color(255);
@@ -255,6 +377,52 @@ function sketch3Init() {
           baseQuad.insert(qn);
           qPts.push(qn.pos);
         }
+        calcMouseEffects();
+      }
+      p.mouseMoved = function mouseMoved($e) {
+        calcMouseEffects();
+      }
+      function calcMouseEffects() {
+        let pts = baseQuad.getPoints();
+        let msPt: Point = { x: p.mouseX, y: p.mouseY };
+        let minDist = Infinity;
+        let minPt: Point | undefined;
+        for(let i = 0; i < pts.length; i++) {
+          let pd = geom.dist(msPt, pts[i], { rel: true });
+          if(pd < minDist) {
+            minDist = pd;
+            minPt = pts[i];
+          }
+        }
+        if(minPt === undefined) {
+          throw new Error('no point of any distance found');
+        }
+        // console.log(minPt);
+        // p.line(msPt.x, msPt.y, minPt.x, minPt.y);
+        minMsPt = minPt;
+        /* find closest in quad */
+        if(baseQuad.inBound(msPt)) {
+          mouseQuad = baseQuad.getMinQuad({x: p.mouseX, y: p.mouseY});
+        } else {
+          mouseQuad = undefined;
+        }
+      }
+      function drawMouseEffects() {
+        p.noFill();
+        p.stroke(c1);
+        // p.strokeWeight(2);
+        if(minMsPt !== undefined) {
+          // console.log(minMsPt);
+          let mptDist = geom.dist({x:p.mouseX, y:p.mouseY}, minMsPt);
+          if(mptDist < 100) {
+            p.line(p.mouseX, p.mouseY, minMsPt.x, minMsPt.y);
+          }
+        }
+
+        // console.log(minQuad);
+        if(mouseQuad?.n !== undefined) {
+          // p.line(p.mouseX, p.mouseY, mouseQuad.n.pos.x, mouseQuad.n.pos.y);
+        }
       }
 
       function initCfgMenu() {
@@ -266,11 +434,6 @@ function sketch3Init() {
             baseQuad.insert(qNode);
           }
         });
-      }
-
-      function drawMouseEffects() {
-        p.noFill();
-        p.stroke(c1);
       }
 
       function drawQuads2() {
@@ -299,6 +462,11 @@ function sketch3Init() {
         p.stroke(qc1);
         p.noFill();
         let midPt = quad.getMidPoint();
+
+        if(quad === mouseQuad && quad.n !== undefined) {
+          // p.rect(quad.n.pos.x - 5, quad.n.pos.y - 5, 10, 10)
+          p.circle(quad.n.pos.x, quad.n.pos.y, 12);
+        }
 
         if(quad.nw === undefined) {
           p.line(quad.tl.x, quad.tl.y, midPt.x, quad.tl.y);
@@ -507,8 +675,10 @@ function sketchBInit() {
         drawingCtx.setLineDash([]);
         p.line(circX, circY - r, circX, circY + r);
         p.line(circX - r, circY, circX + r, circY);
-
-        let [ circ_x2, circ_y2 ] = geom.endPoint(circX, circY, r, cDeg);
+        let circ_pt2 = geom.endPoint(circX, circY, r, cDeg);
+        let circ_x2 = circ_pt2.x;
+        let circ_y2 = circ_pt2.y
+        // let [ circ_x2, circ_y2 ] = geom.endPoint(circX, circY, r, cDeg);
         p.stroke(c6);
         p.fill(c6);
         p.line(circX, circY, circ_x2, circ_y2);

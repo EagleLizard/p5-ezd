@@ -109,4 +109,53 @@ export class Quad {
   getMidPoint(): Point {
     return { x: this.tl.x + this.w() / 2, y: this.tl.y + this.h() / 2 };
   }
+  getChildren(): Quad[] {
+    let childQuads: Quad[] = [
+      this.nw,
+      this.ne,
+      this.sw,
+      this.se,
+    ].filter(child => child !== undefined);
+    return childQuads;
+  }
+  getMinQuad(pt: Point): Quad {
+
+    return _getMinQuad(this);
+
+    function _getMinQuad(quad: Quad) {
+      let childQuads = quad.getChildren();
+      if(childQuads.length < 1) {
+        return quad;
+      }
+      for(let i = 0; i < childQuads.length; i++) {
+        if(childQuads[i].inBound(pt)) {
+          return _getMinQuad(childQuads[i]);
+        }
+      }
+      return quad;
+    }
+  }
+  getPoints(): Point[] {
+    let pts: Point[] = [];
+    /* traverse */
+    _getPoints(this);
+    return pts;
+    function _getPoints(quad: Quad | undefined) {
+      if(quad === undefined) {
+        return;
+      }
+      if(quad.n !== undefined) {
+        pts.push(quad.n.pos);
+      }
+      let childQuads: (Quad | undefined)[] = [
+        quad.nw,
+        quad.ne,
+        quad.sw,
+        quad.se,
+      ];
+      for(let i = 0; i < childQuads.length; i++) {
+        _getPoints(childQuads[i]);
+      }
+    }
+  }
 }
